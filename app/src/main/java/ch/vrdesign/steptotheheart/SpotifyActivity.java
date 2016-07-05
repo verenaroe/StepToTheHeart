@@ -1,5 +1,6 @@
 package ch.vrdesign.steptotheheart;
 
+import android.app.Activity;
 import android.app.DownloadManager;
 import android.content.Intent;
 import android.os.AsyncTask;
@@ -28,7 +29,7 @@ import kaaes.spotify.webapi.android.models.PlaylistTrack;
 import kaaes.spotify.webapi.android.models.PlaylistTracksInformation;
 import kaaes.spotify.webapi.android.models.TrackSimple;
 
-public class SpotifyActivity extends AppCompatActivity implements
+public class SpotifyActivity extends Activity implements
         PlayerNotificationCallback, ConnectionStateCallback {
 
         private static final String CLIENT_ID = "fe5fc16f32a742deb6ba3241d93852aa";
@@ -62,22 +63,16 @@ public class SpotifyActivity extends AppCompatActivity implements
     private Pager<PlaylistSimple> playlists;
     private Pager<TrackSimple> tracks;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_spotify);
+    public SpotifyActivity(Activity contextActivity){
 
         AuthenticationRequest.Builder builder =
                 new AuthenticationRequest.Builder(CLIENT_ID, AuthenticationResponse.Type.TOKEN, REDIRECT_URI);
         builder.setScopes(new String[]{"user-read-private", "streaming"});
         AuthenticationRequest request = builder.build();
-
-        AuthenticationClient.openLoginActivity(this, REQUEST_CODE, request);
+        AuthenticationClient.openLoginActivity(contextActivity, REQUEST_CODE, request);
     }
 
-    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        super.onActivityResult(requestCode, resultCode, intent);
 
         // Check if result comes from the correct activity
         if (requestCode == REQUEST_CODE) {
@@ -105,6 +100,10 @@ public class SpotifyActivity extends AppCompatActivity implements
                 });
             }
         }
+    }
+
+    public void PlayMusic(){
+        new RetrieveFeedTask().execute();
     }
 
     @Override
@@ -152,12 +151,11 @@ public class SpotifyActivity extends AppCompatActivity implements
                 break;
         }
     }
-
-    @Override
+@Override
     protected void onDestroy() {
         // VERY IMPORTANT! This must always be called or else you will leak resources
         Spotify.destroyPlayer(this);
-        super.onDestroy();
+    super.onDestroy();
     }
 
     class RetrieveFeedTask extends AsyncTask<Void, Void, Void> {
@@ -177,7 +175,7 @@ public class SpotifyActivity extends AppCompatActivity implements
                 for (PlaylistSimple playlist: playlists.items
                      ) {
                     Log.i("main", playlist.name);
-                    if (playlist.name.equals("forBT"))
+                    if (playlist.name.equals("run today"))
                         mPlayer.play(playlist.uri);                }
 
 

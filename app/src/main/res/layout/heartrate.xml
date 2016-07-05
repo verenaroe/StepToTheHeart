@@ -27,7 +27,15 @@
         android:orientation="horizontal" >
 
         <TextView
-            android:id="@+id/data_value"
+            android:id="@+id/data_value_heartrate"
+            android:layout_width="140dip"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:text="@string/no_data"
+            android:textSize="30sp" />
+
+        <TextView
+            android:id="@+id/data_value_cadence"
             android:layout_width="140dip"
             android:layout_height="wrap_content"
             android:gravity="center"

@@ -64,7 +64,12 @@ public class DeviceScanActivity extends AppCompatActivity {
     private boolean mScanning;
     private Handler mHandler;
     private ListView listView;
-    // Device scan callback.
+    private boolean polarH7Detected = false;
+    private boolean polarRunDetected = false;
+    private BluetoothDevice polarRun = null;
+    private BluetoothDevice polarH7 = null;
+
+   /* // Device scan callback.
     private BluetoothAdapter.LeScanCallback mLeScanCallback =
             new BluetoothAdapter.LeScanCallback() {
 
@@ -79,7 +84,7 @@ public class DeviceScanActivity extends AppCompatActivity {
                     });
                 }
             };
-
+*/
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -88,26 +93,9 @@ public class DeviceScanActivity extends AppCompatActivity {
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
         filter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
 
-
         listView = (ListView) findViewById(R.id.list);
+
         getSupportActionBar().setTitle(R.string.title_devices);
-        listView.setOnItemClickListener(
-                new AdapterView.OnItemClickListener() {
-                    @Override
-                    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                        final BluetoothDevice device = mLeDeviceListAdapter.getDevice(position);
-                        if (device == null) return;
-                        final Intent intent = new Intent(parent.getContext(), DeviceControlActivity.class);
-                        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_NAME, device.getName());
-                        intent.putExtra(DeviceControlActivity.EXTRAS_DEVICE_ADDRESS, device.getAddress());
-                        if (mScanning) {
-                            mBluetoothAdapter.stopLeScan(mLeScanCallback);
-                            mScanning = false;
-                        }
-                        startActivity(intent);
-                    }
-                }
-        );
         mHandler = new Handler();
 
 
@@ -180,7 +168,6 @@ public class DeviceScanActivity extends AppCompatActivity {
         // Initializes list view adapter.
         mLeDeviceListAdapter = new LeDeviceListAdapter();
         listView.setAdapter(mLeDeviceListAdapter);
-        //setListAdapter(mLeDeviceListAdapter);
         scanLeDevice(true);
     }
 
@@ -204,7 +191,6 @@ public class DeviceScanActivity extends AppCompatActivity {
     @Override
     public void onDestroy() {
          unregisterReceiver(mReceiver);
-
          super.onDestroy();
     }
 
@@ -222,9 +208,32 @@ public class DeviceScanActivity extends AppCompatActivity {
 
                 Log.i("AG","Found device " + device.getName());
                 if (device.getName() == null) return;
-                if (device.getName().contains("Polar H7") || device.getName().contains("Polar RUN")){
+                if (device.getName().contains("Polar H7")){
                     mLeDeviceListAdapter.addDevice(device);
                     mLeDeviceListAdapter.notifyDataSetChanged();
+                    polarH7Detected = true;
+                    polarH7 = device;
+                }
+                else if (device.getName().contains("Polar RUN")){
+                    mLeDeviceListAdapter.addDevice(device);
+                    mLeDeviceListAdapter.notifyDataSetChanged();
+                    polarRunDetected = true;
+                    polarRun = device;
+                }
+
+                if (polarH7Detected && polarRunDetected){
+                    if (polarH7 == null || polarRun == null) return;
+                    final Intent controlIntent = new Intent(context, DeviceControlActivity.class);
+                    controlIntent.putExtra(DeviceControlActivity.EXTRAS_RUN_NAME, polarRun.getName());
+                    controlIntent.putExtra(DeviceControlActivity.EXTRAS_RUN_ADDRESS, polarRun.getAddress());
+                    controlIntent.putExtra(DeviceControlActivity.EXTRAS_H7_NAME, polarH7.getName());
+                    controlIntent.putExtra(DeviceControlActivity.EXTRAS_H7_ADDRESS, polarH7.getAddress());
+                    if (mScanning) {
+                        mBluetoothAdapter.cancelDiscovery();
+                        mScanning = false;
+                    }
+                   startActivity(controlIntent);
+
                 }
             }
         }
@@ -243,6 +252,7 @@ public class DeviceScanActivity extends AppCompatActivity {
             }, SCAN_PERIOD);
             mScanning = true;
             mBluetoothAdapter.startDiscovery();
+            registerReceiver(mReceiver, filter);
         } else {
             mScanning = false;
             mBluetoothAdapter.cancelDiscovery();

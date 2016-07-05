@@ -36,6 +36,7 @@ import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Paint.Align;
+import android.os.AsyncTask;
 import android.os.Bundle;
 
 
@@ -56,6 +57,7 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -74,8 +76,20 @@ import com.dropbox.client2.android.AndroidAuthSession;
 import com.dropbox.client2.session.AccessTokenPair;
 import com.dropbox.client2.session.AppKeyPair;
 import com.dropbox.client2.session.Session.AccessType;
+import com.spotify.sdk.android.authentication.AuthenticationClient;
+import com.spotify.sdk.android.authentication.AuthenticationResponse;
+import com.spotify.sdk.android.player.Config;
+import com.spotify.sdk.android.player.ConnectionStateCallback;
+import com.spotify.sdk.android.player.Player;
+import com.spotify.sdk.android.player.PlayerNotificationCallback;
+import com.spotify.sdk.android.player.PlayerState;
+import com.spotify.sdk.android.player.Spotify;
 
-import ch.vrdesign.steptotheheart.R;
+import kaaes.spotify.webapi.android.SpotifyApi;
+import kaaes.spotify.webapi.android.SpotifyService;
+import kaaes.spotify.webapi.android.models.Pager;
+import kaaes.spotify.webapi.android.models.PlaylistSimple;
+import kaaes.spotify.webapi.android.models.TrackSimple;
 
 /**
  * For a given BLE device, this Activity provides the user interface to connect,
@@ -83,17 +97,21 @@ import ch.vrdesign.steptotheheart.R;
  * device. The Activity communicates with {@code BluetoothLeService}, which in
  * turn interacts with the Bluetooth LE API.
  */
-public class DeviceControlActivity extends AppCompatActivity {
+public class DeviceControlActivity extends AppCompatActivity implements PlayerNotificationCallback, ConnectionStateCallback {
     private final static String TAG = DeviceControlActivity.class
             .getSimpleName();
 
     // BLE stuff
-    public static final String EXTRAS_DEVICE_NAME = "DEVICE_NAME";
-    public static final String EXTRAS_DEVICE_ADDRESS = "DEVICE_ADDRESS";
-    private BluetoothLeService mBluetoothLeService;
+    public static final String EXTRAS_H7_NAME = "DEVICE_NAMEH7";
+    public static final String EXTRAS_H7_ADDRESS = "DEVICE_ADDRESSH7";
+    public static final String EXTRAS_RUN_NAME = "DEVICE_NAMERUN";
+    public static final String EXTRAS_RUN_ADDRESS = "DEVICE_ADDRESSRUN";
+    private BluetoothLeService mBluetoothLeServiceH7;
+    private BluetoothLeService mBluetoothLeServiceRUN;
     private ArrayList<ArrayList<BluetoothGattCharacteristic>> mGattCharacteristics = new ArrayList<ArrayList<BluetoothGattCharacteristic>>();
     private boolean mConnected = false;
-    private BluetoothGattCharacteristic mNotifyCharacteristic;
+    private BluetoothGattCharacteristic mNotifyCharacteristicRUN;
+    private BluetoothGattCharacteristic mNotifyCharacteristicH7;
     private final String LIST_NAME = "NAME";
     private final String LIST_UUID = "UUID";
     private static final int REQUEST_EXTERNAL_STORAGE = 1;
@@ -119,9 +137,12 @@ public class DeviceControlActivity extends AppCompatActivity {
     // Various UI stuff
     public static boolean currentlyVisible;
     private boolean logging = false;
-    private TextView mDataField;
-    private String mDeviceName;
-    private String mDeviceAddress;
+    private TextView mDataFieldHeartRate;
+    private TextView mDataFieldCadence;
+    private String mH7Name;
+    private String mH7Address;
+    private String mRUNName;
+    private String mRUNAddress;
     private ImageButton mButtonStart;
     private ImageButton mButtonStop;
     private ImageButton mButtonSend;
@@ -130,31 +151,47 @@ public class DeviceControlActivity extends AppCompatActivity {
     private GraphicalView mChart;
     private XYMultipleSeriesDataset mDataset = new XYMultipleSeriesDataset();
     private XYMultipleSeriesRenderer mRenderer = new XYMultipleSeriesRenderer();
-    private XYSeries mCurrentSeries;
-    private XYSeriesRenderer mCurrentRenderer;
+    private XYSeries mSeriesHeartRate;
+    private XYSeries mSeriesCadence;
+    private XYSeriesRenderer mRendererHeartRate;
+    private XYSeriesRenderer mRendererCadence;
+
 
     private void initChart() {
 
         Log.i(TAG, "initChart");
-        if (mCurrentSeries == null) {
-            mCurrentSeries = new XYSeries("Heart Rate");
-            mDataset.addSeries(mCurrentSeries);
+        if (mSeriesHeartRate == null) {
+            mSeriesHeartRate = new XYSeries("Heart Rate");
+            mDataset.addSeries(mSeriesHeartRate);
+        }
+        if (mSeriesCadence == null) {
+            mSeriesCadence = new XYSeries("Steps per Minute");
+            mDataset.addSeries(mSeriesCadence);
             Log.i(TAG, "initChart mCurrentSeries == null");
         }
 
-        if (mCurrentRenderer == null) {
-            mCurrentRenderer = new XYSeriesRenderer();
-            mCurrentRenderer.setLineWidth(4);
+        if (mRendererHeartRate == null) {
+            mRendererHeartRate = new XYSeriesRenderer();
+            mRendererHeartRate.setLineWidth(4);
 
-            mCurrentRenderer.setPointStyle(PointStyle.CIRCLE);
-            mCurrentRenderer.setFillPoints(true);
-            mCurrentRenderer.setColor(Color.GREEN);
-            Log.i(TAG, "initChart mCurrentRenderer == null");
+            mRendererHeartRate.setPointStyle(PointStyle.CIRCLE);
+            mRendererHeartRate.setFillPoints(true);
+            mRendererHeartRate.setColor(Color.GREEN);
+            Log.i(TAG, "initChart mRendererHeartRate == null");
+            if (mRendererCadence == null) {
+                mRendererCadence = new XYSeriesRenderer();
+                mRendererCadence.setLineWidth(4);
+
+                mRendererCadence.setPointStyle(PointStyle.CIRCLE);
+                mRendererCadence.setFillPoints(true);
+                mRendererCadence.setColor(Color.GREEN);
+                Log.i(TAG, "initChart mRendererCadence == null");
+            }
 
             mRenderer.setAxisTitleTextSize(70);
             mRenderer.setPointSize(5);
             mRenderer.setYTitle("Time");
-            mRenderer.setYTitle("Heart rate");
+            mRenderer.setYTitle("Heart rate & Cadence * 2");
             mRenderer.setPanEnabled(true);
             mRenderer.setLabelsTextSize(50);
             mRenderer.setLegendTextSize(50);
@@ -188,9 +225,11 @@ public class DeviceControlActivity extends AppCompatActivity {
             mRenderer.setPointSize(3);
             mRenderer.setInScroll(true);
             // mRenderer.setShowLegend(false);
-            mRenderer.setMargins(new int[] { 50, 150, 10, 50 });
+            mRenderer.setMargins(new int[]{50, 150, 10, 50});
 
-            mRenderer.addSeriesRenderer(mCurrentRenderer);
+            mRenderer.addSeriesRenderer(mRendererHeartRate);
+            mRenderer.addSeriesRenderer(mRendererCadence);
+
         }
     }
 
@@ -200,20 +239,29 @@ public class DeviceControlActivity extends AppCompatActivity {
         @Override
         public void onServiceConnected(ComponentName componentName,
                                        IBinder service) {
-            mBluetoothLeService = ((BluetoothLeService.LocalBinder) service)
+            mBluetoothLeServiceRUN = ((BluetoothLeService.LocalBinder) service)
                     .getService();
-            if (!mBluetoothLeService.initialize()) {
-                Log.e(TAG, "Unable to initialize Bluetooth");
+            mBluetoothLeServiceH7 = ((BluetoothLeService.LocalBinder) service)
+                    .getService();
+            if (!mBluetoothLeServiceH7.initialize()) {
+                Log.e(TAG, "Unable to initialize Bluetooth Service H7");
+                finish();
+            }
+            if (!mBluetoothLeServiceRUN.initialize()) {
+                Log.e(TAG, "Unable to initialize Bluetooth Service RUN");
                 finish();
             }
             // Automatically connects to the device upon successful start-up
             // initialization.
-            mBluetoothLeService.connect(mDeviceAddress);
+
+            mBluetoothLeServiceH7.connect(mH7Address);
+            mBluetoothLeServiceRUN.connect(mRUNAddress);
         }
 
         @Override
         public void onServiceDisconnected(ComponentName componentName) {
-            mBluetoothLeService = null;
+            mBluetoothLeServiceH7 = null;
+            mBluetoothLeServiceRUN = null;
         }
     };
 
@@ -224,15 +272,18 @@ public class DeviceControlActivity extends AppCompatActivity {
     // ACTION_DATA_AVAILABLE: received data from the device. This can be a
     // result of read
     // or notification operations.
-    private final BroadcastReceiver mGattUpdateReceiver = new BroadcastReceiver() {
+    private final BroadcastReceiver mGattUpdateReceiverRUN = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             final String action = intent.getAction();
             if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
                 mConnected = true;
                 updateConnectionState(true);
-                displayGattServices(mBluetoothLeService
-                        .getSupportedGattServices());
+               // new GetServicesAxync().execute();
+                displayGattServices(mBluetoothLeServiceRUN
+                        .getSupportedGattServices("RUN"));
+                displayGattServices(mBluetoothLeServiceH7
+                        .getSupportedGattServices("H7"));
                 invalidateOptionsMenu();
             } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
                     .equals(action)) {
@@ -244,25 +295,65 @@ public class DeviceControlActivity extends AppCompatActivity {
                     .equals(action)) {
                 // Show all the supported services and characteristics on the
                 // user interface.
-                displayGattServices(mBluetoothLeService
-                        .getSupportedGattServices());
+                displayGattServices(mBluetoothLeServiceH7
+                        .getSupportedGattServices("H7"));
+                displayGattServices(mBluetoothLeServiceRUN
+                        .getSupportedGattServices("RUN"));
+                // mButtonStop.setVisibility(View.VISIBLE);
+            } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
+                displayCadence(intent.getStringExtra(BluetoothLeService.EXTRA_DATA_CADENCE));
+            }
+        }
+    };
+
+    // Handles various events fired by the Service.
+    // ACTION_GATT_CONNECTED: connected to a GATT server.
+    // ACTION_GATT_DISCONNECTED: disconnected from a GATT server.
+    // ACTION_GATT_SERVICES_DISCOVERED: discovered GATT services.
+    // ACTION_DATA_AVAILABLE: received data from the device. This can be a
+    // result of read
+    // or notification operations.
+    private final BroadcastReceiver mGattUpdateReceiverH7 = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            final String action = intent.getAction();
+            if (BluetoothLeService.ACTION_GATT_CONNECTED.equals(action)) {
+                mConnected = true;
+                updateConnectionState(true);
+                displayGattServices(mBluetoothLeServiceH7
+                        .getSupportedGattServices("H7"));
+                invalidateOptionsMenu();
+            } else if (BluetoothLeService.ACTION_GATT_DISCONNECTED
+                    .equals(action)) {
+                mConnected = false;
+                updateConnectionState(false);
+                invalidateOptionsMenu();
+                clearUI();
+            } else if (BluetoothLeService.ACTION_GATT_SERVICES_DISCOVERED
+                    .equals(action)) {
+                // Show all the supported services and characteristics on the
+                // user interface.
+                displayGattServices(mBluetoothLeServiceH7
+                        .getSupportedGattServices("H7"));
 
                 // mButtonStop.setVisibility(View.VISIBLE);
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
-                displayData(intent
-                        .getStringExtra(BluetoothLeService.EXTRA_DATA));
+                displayHeartRate(intent.getStringExtra(BluetoothLeService.EXTRA_DATA_HEARTRATE));
             }
         }
     };
 
     private void clearUI() {
         // mGattServicesList.setAdapter((SimpleExpandableListAdapter) null);
-        mDataField.setText(R.string.no_data);
+        mDataFieldHeartRate.setText("---");
+        mDataFieldCadence.setText(R.string.no_data);
     }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        final Activity spotActivity = this;
 
         Log.i(TAG, "onCreate");
 
@@ -271,8 +362,10 @@ public class DeviceControlActivity extends AppCompatActivity {
         // getWindow().addFlags(LayoutParams.FLAG_KEEP_SCREEN_ON);
 
         final Intent intent = getIntent();
-        mDeviceName = intent.getStringExtra(EXTRAS_DEVICE_NAME);
-        mDeviceAddress = intent.getStringExtra(EXTRAS_DEVICE_ADDRESS);
+        mH7Address = intent.getStringExtra(EXTRAS_H7_ADDRESS);
+        mH7Name = intent.getStringExtra(EXTRAS_H7_NAME);
+        mRUNAddress = intent.getStringExtra(EXTRAS_RUN_ADDRESS);
+        mRUNName = intent.getStringExtra(EXTRAS_RUN_NAME);
 
         // Set up database connection
         datasource = new EventsDataSource(this);
@@ -282,7 +375,8 @@ public class DeviceControlActivity extends AppCompatActivity {
         AndroidAuthSession session = buildSession();
         mDBApi = new DropboxAPI<AndroidAuthSession>(session);
 
-        mDataField = (TextView) findViewById(R.id.data_value);
+        mDataFieldHeartRate = (TextView) findViewById(R.id.data_value_heartrate);
+        mDataFieldCadence = (TextView) findViewById(R.id.data_value_cadence);
 
         mButtonSend = (ImageButton) findViewById(R.id.btnSend);
         mButtonSend.setOnClickListener(new View.OnClickListener() {
@@ -307,6 +401,7 @@ public class DeviceControlActivity extends AppCompatActivity {
         mButtonStart.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 startLogging();
+                SpotifyActivity spot = new SpotifyActivity(spotActivity);
             }
         });
 
@@ -318,7 +413,7 @@ public class DeviceControlActivity extends AppCompatActivity {
         });
 
 
-        getSupportActionBar().setTitle(mDeviceName);
+        getSupportActionBar().setTitle("Do this");
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
         Intent gattServiceIntent = new Intent(this, BluetoothLeService.class);
         // TODO: Lars added this
@@ -338,9 +433,69 @@ public class DeviceControlActivity extends AppCompatActivity {
         verifyStoragePermissions(this);
     }
 
+    private static final int REQUEST_CODE = 1337;
+    String myAccessToken = "myAccessToken";
+    private Player mPlayer;
+    private Pager<PlaylistSimple> playlists;
+    private Pager<TrackSimple> tracks;
+
+    private static final String CLIENT_ID = "fe5fc16f32a742deb6ba3241d93852aa";
+    private static final String REDIRECT_URI = "ch.vrdesign.steptotheheart://callback";
+
+    private static final List<String> TEST_ALBUM_TRACKS = Arrays.asList(
+            "spotify:track:2To3PTOTGJUtRsK3nQemP4",
+            "spotify:track:0tDoBMgyAzGgLhs73KPrJL",
+            "spotify:track:5YkSQuB8i7J4TTyj0xw6ol",
+            "spotify:track:3WpLfCkrlQxj8SISLzhs06",
+            "spotify:track:2lGNTC3NKCG1d4lR8x3611",
+            "spotify:track:0kdSj5REwpHjTBaBsm1wv8",
+            "spotify:track:3BgnZiGnnRlXfeGR8ryKzT",
+            "spotify:track:00cVWQIFyQnIdsgoVy7qAG",
+            "spotify:track:6eEEoowHpnaD3q83ZhYmhZ",
+            "spotify:track:1HFBn8S30ndZ7lLb9HbENU",
+            "spotify:track:1I9VibKgJTqGfrh8fEK3sL",
+            "spotify:track:6rXSPMgGIyOYiMhsj3eSAi",
+            "spotify:track:2xwuXthwdNGbPyEqifPQNW",
+            "spotify:track:5vRuWI48vKn4TV7efrYtJL",
+            "spotify:track:4SEDYSBDd4Ota125LjHa2w",
+            "spotify:track:2bVTnSTjLWAizyj4XcU5bf",
+            "spotify:track:4gQzqlFuqv6l4Ka633Ue7T",
+            "spotify:track:0SLVmM7IrrtkPNa1Fi3IKT"
+    );
+
+    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+
+        // Check if result comes from the correct activity
+        if (requestCode == REQUEST_CODE) {
+
+            AuthenticationResponse response = AuthenticationClient.getResponse(resultCode, intent);
+            if (response.getType() == AuthenticationResponse.Type.TOKEN) {
+                myAccessToken = response.getAccessToken();
+
+                new RetrieveFeedTask().execute();
+
+                Config playerConfig = new Config(this, response.getAccessToken(), CLIENT_ID);
+                mPlayer = Spotify.getPlayer(playerConfig, this, new Player.InitializationObserver() {
+                    @Override
+                    public void onInitialized(Player player) {
+                        mPlayer.addConnectionStateCallback(DeviceControlActivity.this);
+                        mPlayer.addPlayerNotificationCallback(DeviceControlActivity.this);
+                        mPlayer.play(TEST_ALBUM_TRACKS);
+
+                    }
+
+                    @Override
+                    public void onError(Throwable throwable) {
+                        Log.e("MainActivity", "Could not initialize player: " + throwable.getMessage());
+                    }
+                });
+            }
+        }
+    }
+
     /**
      * Checks if the app has permission to write to device storage
-     *
+     * <p/>
      * If the app does not has permission then the user will be prompted to grant permissions
      *
      * @param activity
@@ -364,10 +519,23 @@ public class DeviceControlActivity extends AppCompatActivity {
         super.onResume();
         currentlyVisible = true;
 
-        registerReceiver(mGattUpdateReceiver, makeGattUpdateIntentFilter());
-        if (mBluetoothLeService != null) {
-            final boolean result = mBluetoothLeService.connect(mDeviceAddress);
-            Log.d(TAG, "Connect request result=" + result);
+        registerReceiver(mGattUpdateReceiverH7, makeGattUpdateIntentFilter());
+        registerReceiver(mGattUpdateReceiverRUN, makeGattUpdateIntentFilter());
+
+
+        if (mBluetoothLeServiceH7 != null) {
+
+            final boolean resultH7 = mBluetoothLeServiceH7.connect(mH7Address);
+
+            Log.d(TAG, "Connect request resultH7=" + resultH7);
+
+        }
+        if (mBluetoothLeServiceRUN != null) {
+
+            final boolean resultRUN = mBluetoothLeServiceRUN.connect(mRUNAddress);
+
+            Log.d(TAG, "Connect request resultRUN=" + resultRUN);
+
         }
 
         if (mDBApi.getSession().authenticationSuccessful()) {
@@ -417,8 +585,9 @@ public class DeviceControlActivity extends AppCompatActivity {
         super.onDestroy();
         currentlyVisible = false;
         unbindService(mServiceConnection);
-        unregisterReceiver(mGattUpdateReceiver);
-        // mBluetoothLeService = null;
+        unregisterReceiver(mGattUpdateReceiverH7);
+        unregisterReceiver(mGattUpdateReceiverRUN);
+        // mBluetoothLeServiceH7 = null;
     }
 
     @Override
@@ -456,10 +625,12 @@ public class DeviceControlActivity extends AppCompatActivity {
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.menu_connect:
-                mBluetoothLeService.connect(mDeviceAddress);
+                mBluetoothLeServiceRUN.connect(mRUNAddress);
+                mBluetoothLeServiceH7.connect(mH7Address);
                 return true;
             case R.id.menu_disconnect:
-                mBluetoothLeService.disconnect();
+                mBluetoothLeServiceRUN.disconnect();
+                mBluetoothLeServiceH7.disconnect();
                 return true;
             case R.id.menu_dropbox:
                 dropboxUpload();
@@ -494,28 +665,32 @@ public class DeviceControlActivity extends AppCompatActivity {
 
     int x = 0;
 
-    private void displayData(String data) {
+    private void displayHeartRate(String heartRate) {
         try {
-            if (data != null) {
+            if (heartRate != null) {
 
                 long time = (new Date()).getTime();
-                int dataElement = Integer.parseInt(data);
-                mCurrentSeries.add(time, dataElement);
-                appendLog((new Date()).toString() + "," + data);
-                //datasource.createEvent(1, time, dataElement);
-                // Storing last 600 only - should average...
-                while (mCurrentSeries.getItemCount() > 60*10) {
-                    mCurrentSeries.remove(0);
+
+                int dataElementHR = Integer.parseInt(heartRate);
+
+                mSeriesHeartRate.add(time, dataElementHR);
+
+                appendLog(("Heartrate: " + new Date()).toString() + "," + heartRate);
+
+                while (mSeriesHeartRate.getItemCount() > 60 * 10) {
+                    mSeriesHeartRate.remove(0);
                 }
 
+
                 if (currentlyVisible) {
-                    mDataField.setText("Pulse: " + data);
+                    mDataFieldHeartRate.setText("Pulse: " + heartRate);
+
 
                     mRenderer.setYAxisMin(0);
-                    mRenderer.setYAxisMax(mCurrentSeries.getMaxY() + 20);
+                    mRenderer.setYAxisMax(mSeriesHeartRate.getMaxY() + 20);
 
-                    double minx = mCurrentSeries.getMinX();
-                    double maxx = mCurrentSeries.getMaxX();
+                    double minx = mSeriesHeartRate.getMinX();
+                    double maxx = mSeriesHeartRate.getMaxX();
 
                     if ((maxx - minx) < 5 * 60 * 1000) {
                         mRenderer.setXAxisMin(minx);
@@ -530,9 +705,53 @@ public class DeviceControlActivity extends AppCompatActivity {
                 }
             }
         } catch (Exception e) {
-            Log.e(TAG, "Exception while parsing: " + data);
+            Log.e(TAG, "Exception while parsing heartrate: " + heartRate);
         }
     }
+
+    private void displayCadence(String cadence) {
+        try {
+            if (cadence != null) {
+
+                long time = (new Date()).getTime();
+
+                int dataElementCadence = Integer.parseInt(cadence);
+                mSeriesCadence.add(time, dataElementCadence);
+                appendLog(("Cadence: " + new Date()).toString() + "," + cadence);
+                //datasource.createEvent(1, time, dataElement);
+                // Storing last 600 only - should average...
+
+                while (mSeriesCadence.getItemCount() > 60 * 10) {
+                    mSeriesCadence.remove(0);
+                }
+
+                if (currentlyVisible) {
+                    mDataFieldCadence.setText("Cadence: " + cadence);
+
+
+                    mRenderer.setYAxisMin(0);
+                    mRenderer.setYAxisMax(mSeriesCadence.getMaxY() + 20);
+
+                    double minx = mSeriesCadence.getMinX();
+                    double maxx = mSeriesCadence.getMaxX();
+
+                    if ((maxx - minx) < 5 * 60 * 1000) {
+                        mRenderer.setXAxisMin(minx);
+                        mRenderer.setXAxisMax(minx + (5 * 60 * 1000));
+                    } else {
+                        mRenderer.setXAxisMin(maxx - (5 * 60 * 1000));
+                        mRenderer.setXAxisMax(maxx);
+                    }
+
+                    mChart.repaint();
+                    mChart.zoomReset();
+                }
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Exception while parsing cadence: " + cadence);
+        }
+    }
+
 
     // Demonstrates how to iterate through the supported GATT
     // Services/Characteristics.
@@ -571,10 +790,10 @@ public class DeviceControlActivity extends AppCompatActivity {
                 if (UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT)
                         .equals(gattCharacteristic.getUuid())) {
                     Log.d(TAG, "Found heart rate");
-                    mNotifyCharacteristic = gattCharacteristic;
-                } else if (UUID.fromString(SampleGattAttributes.RUNNINGSPEEDANDCADENCE_MEASUREMENT).equals(gattCharacteristic.getUuid())){
+                    mNotifyCharacteristicH7 = gattCharacteristic;
+                } else if (UUID.fromString(SampleGattAttributes.RUNNINGSPEEDANDCADENCE_MEASUREMENT).equals(gattCharacteristic.getUuid())) {
                     Log.d(TAG, "Found Running Speed and Cadence");
-                    mNotifyCharacteristic = gattCharacteristic;
+                    mNotifyCharacteristicRUN = gattCharacteristic;
                 }
 
                 charas.add(gattCharacteristic);
@@ -678,8 +897,9 @@ public class DeviceControlActivity extends AppCompatActivity {
         mButtonSend.setVisibility(View.VISIBLE);
         mButtonStop.setVisibility(View.VISIBLE);
         mButtonStart.setVisibility(View.GONE);
-        mBluetoothLeService.setCharacteristicNotification(
-                mNotifyCharacteristic, true);
+        new AsyncReadOut().execute();
+        mBluetoothLeServiceRUN.setCharacteristicNotification(
+                mNotifyCharacteristicRUN, true);
         invalidateOptionsMenu();
         logging = true;
     }
@@ -687,9 +907,95 @@ public class DeviceControlActivity extends AppCompatActivity {
     private void stopLogging() {
         mButtonStop.setVisibility(View.GONE);
         mButtonStart.setVisibility(View.VISIBLE);
-        mBluetoothLeService.setCharacteristicNotification(
-                mNotifyCharacteristic, false);
+        mBluetoothLeServiceH7.setCharacteristicNotification(
+                mNotifyCharacteristicH7, false);
+        mBluetoothLeServiceRUN.setCharacteristicNotification(
+                mNotifyCharacteristicRUN, false);
         invalidateOptionsMenu();
         logging = false;
+    }
+
+    @Override
+    public void onLoggedIn() {
+        Log.d("MainActivity", "User logged in");
+    }
+
+    @Override
+    public void onLoggedOut() {
+        Log.d("MainActivity", "User logged out");
+    }
+
+    @Override
+    public void onLoginFailed(Throwable error) {
+        Log.d("MainActivity", "Login failed");
+        Log.d("MainActivity", error.getMessage());
+    }
+
+    @Override
+    public void onTemporaryError() {
+        Log.d("MainActivity", "Temporary error occurred");
+    }
+
+    @Override
+    public void onConnectionMessage(String message) {
+        Log.d("MainActivity", "Received connection message: " + message);
+    }
+
+    @Override
+    public void onPlaybackEvent(EventType eventType, PlayerState playerState) {
+        Log.d("MainActivity", "Playback event received: " + eventType.name());
+        switch (eventType) {
+            // Handle event type as necessary
+            default:
+                break;
+        }
+    }
+
+    @Override
+    public void onPlaybackError(ErrorType errorType, String errorDetails) {
+        Log.d("MainActivity", "Playback error received: " + errorType.name());
+        switch (errorType) {
+            // Handle error type as necessary
+            default:
+                break;
+        }
+    }
+
+    class AsyncReadOut extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            mBluetoothLeServiceH7.setCharacteristicNotification(
+                    mNotifyCharacteristicH7, true);
+            return null;
+        }
+    }
+
+    class RetrieveFeedTask extends AsyncTask<Void, Void, Void> {
+
+        @Override
+        protected Void doInBackground(Void... params) {
+            try {
+                SpotifyApi api = new SpotifyApi();
+
+// Most (but not all) of the Spotify Web API endpoints require authorisation.
+// If you know you'll only use the ones that don't require authorisation you can skip this step
+                api.setAccessToken(myAccessToken);
+
+                SpotifyService spotify = api.getService();
+                playlists = spotify.getMyPlaylists();
+                for (PlaylistSimple playlist : playlists.items
+                        ) {
+                    Log.i("main", playlist.name);
+                    if (playlist.name.equals("run today"))
+                        mPlayer.play(playlist.uri);
+                }
+
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
     }
 }
