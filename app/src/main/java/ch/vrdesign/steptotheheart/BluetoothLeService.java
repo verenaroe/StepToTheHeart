@@ -63,6 +63,7 @@ public class BluetoothLeService extends Service {
     public final static String ACTION_GATT_DISCONNECTED = "ACTION_GATT_DISCONNECTED";
     public final static String ACTION_GATT_SERVICES_DISCOVERED = "ACTION_GATT_SERVICES_DISCOVERED";
     public final static String ACTION_DATA_AVAILABLE = "ACTION_DATA_AVAILABLE";
+
     public final static String EXTRA_DATA_HEARTRATE = "EXTRA_DATA_HEARTRATE";
     public final static String EXTRA_DATA_CADENCE = "EXTRA_DATA_CADENCE";
 
@@ -170,48 +171,24 @@ public class BluetoothLeService extends Service {
         if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
             int flag = characteristic.getProperties();
             int format = -1;
-            if ((flag & 0x01) != 0) {
+            if ((flag & 0x01) != 0)
                 format = BluetoothGattCharacteristic.FORMAT_UINT16;
-                Log.d(TAG, "Heart rate format UINT16.");
-            } else {
+            else
                 format = BluetoothGattCharacteristic.FORMAT_UINT8;
-                Log.d(TAG, "Heart rate format UINT8.");
-            }
             final int heartRate = characteristic.getIntValue(format, 1);
             Log.d(TAG, String.format("Received heart rate: %d", heartRate));
             intent.putExtra(EXTRA_DATA_HEARTRATE, String.valueOf(heartRate));
+            DeviceControlActivity.fillHeartrate(heartRate);
         }else if (UUID_RUNNINGSPEEDANDCADENCE_MEASUREMENT.equals(characteristic.getUuid())){
 
-
-            int offset = 0;
-            final int flags = characteristic.getValue()[offset]; // 1 byte
-
-            offset += 1;
-
-            final boolean islmPresent = (flags & INSTANTANEOUS_STRIDE_LENGTH_PRESENT) > 0;
-            final boolean tdPreset = (flags & TOTAL_DISTANCE_PRESENT) > 0;
-            final boolean running = (flags & WALKING_OR_RUNNING_STATUS_BITS) > 0;
-
-            final float instantaneousSpeed = (float) characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset) / 256.0f * 3.6f; // 1/256 m/s in km/h
-            offset += 2;
+            int offset = 3;
 
             final int instantaneousCadence = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, offset);
-            offset += 1;
 
-
-    /*        if (islmPresent) {
-                float instantaneousStrideLength = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT16, offset);
-                offset += 2;
-            }
-
-            if (tdPreset) {
-                float totalDistance = (float) characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT32, offset) / 10.0f;
-                offset += 4;
-            }*/
-
-            Log.d(TAG, String.format("%e, %d, %b, %b, %b",  instantaneousSpeed, instantaneousCadence, islmPresent, tdPreset, running));
+            Log.d(TAG, String.format("Received Cadence: %d",  instantaneousCadence));
 
             intent.putExtra(EXTRA_DATA_CADENCE, String.valueOf(instantaneousCadence * 2));
+            DeviceControlActivity.fillCadence(instantaneousCadence);
         }
         sendBroadcast(intent);
     }
@@ -323,7 +300,7 @@ public class BluetoothLeService extends Service {
         // parameter to false.
         if (device.getName().contains("Polar RUN")){
             mBluetoothGattRUN = device.connectGatt(this, false, mGattCallback);
-            Log.d(TAG, "Trying to create a new connectionto RUN.");
+            Log.d(TAG, "Trying to create a new connection to RUN.");
             mBluetoothDeviceAddressRUN = address;
         }
 
@@ -368,23 +345,6 @@ public class BluetoothLeService extends Service {
     }
 
     /**
-     * Request a read on a given {@code BluetoothGattCharacteristic}. The read
-     * result is reported asynchronously through the
-     * {@code BluetoothGattCallback#onCharacteristicRead(android.bluetooth.BluetoothGatt, android.bluetooth.BluetoothGattCharacteristic, int)}
-     * callback.
-     *
-     * @param characteristic
-     *            The characteristic to read from.
-     */
-   /* public void readCharacteristic(BluetoothGattCharacteristic characteristic) {
-        if (mBluetoothAdapter == null || mBluetoothGatt == null) {
-            Log.w(TAG, "BluetoothAdapter not initialized");
-            return;
-        }
-        mBluetoothGatt.readCharacteristic(characteristic);
-    }*/
-
-    /**
      * Enables or disables notification on a give characteristic.
      *
      * @param characteristic
@@ -405,7 +365,8 @@ public class BluetoothLeService extends Service {
                     .getDescriptor(UUID
                             .fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
             descriptor
-                    .setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                        .setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+
             mBluetoothGattH7.writeDescriptor(descriptor);
         }
 
@@ -435,8 +396,5 @@ public class BluetoothLeService extends Service {
             return mBluetoothGattRUN.getServices();
 
         return null;
-
-        //if (mBluetoothGatt == null)
-        //    return null;
     }
 }

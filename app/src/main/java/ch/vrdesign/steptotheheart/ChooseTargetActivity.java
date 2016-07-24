@@ -26,40 +26,56 @@ public class ChooseTargetActivity extends AppCompatActivity {
     }
 
     private void setSettings(){
-        // save index of trainingzone to settings
+
+        // get settings
+
         SharedPreferences settings = getSharedPreferences(PREFS_NAME, 0);
         SharedPreferences.Editor editor = settings.edit();
 
-        RadioGroup radioButtonGroup = (RadioGroup) findViewById(R.id.radioGroup);
+        // save trainigzone boundaries to settings
 
+        int maxHr = settings.getInt("hrMax", 220);
+        int zone1Bottom = maxHr * 50 / 100;
+        int zone1Top = maxHr * 60 / 100;
+        int zone2Top = maxHr * 70 / 100;
+        int zone3Top = maxHr * 80 / 100;
+        editor.putInt("zone1Bottom", zone1Bottom);
+        editor.putInt("zone1Top", zone1Top);
+        editor.putInt("zone2Top", zone2Top);
+        editor.putInt("zone3Top", zone3Top);
+
+        // get choosen trainingszone
+
+        RadioGroup radioButtonGroup = (RadioGroup) findViewById(R.id.radioGroup);
         int radioButtonID = radioButtonGroup.getCheckedRadioButtonId();
         View radioButton = radioButtonGroup.findViewById(radioButtonID);
         int index = radioButtonGroup.indexOfChild(radioButton);
-
-        int bottomLimit = 0;
-        int topLimit = 0;
-        int maxHr = settings.getInt("hrMax", 220);
         switch (index){
             case 1:
-                bottomLimit = maxHr * 50 / 100;
-                topLimit = maxHr * 60 / 100;
                 editor.putString("trainingZoneString", "50 - 60% HRMax");
+                editor.putString("resultingHeartrateString", String.format("%d - %d", zone1Bottom, zone1Top));
+                editor.putInt("bottomLimit", zone1Bottom);
+                editor.putInt("topLimit", zone1Top);
+                editor.putInt("choosenTrainingzone", 1);
+                editor.putInt("playListInitialTempo", settings.getInt("zone1Tempo", 0));
                 break;
             case 2:
-                bottomLimit = maxHr * 60 / 100;
-                topLimit = maxHr * 70 / 100;
                 editor.putString("trainingZoneString", "60 - 70% HRMax");
+                editor.putString("resultingHeartrateString", String.format("%d - %d", zone1Top, zone2Top));
+                editor.putInt("bottomLimit", zone1Top);
+                editor.putInt("topLimit", zone2Top);
+                editor.putInt("choosenTrainingzone", 2);
+                editor.putInt("playListInitialTempo", settings.getInt("zone2Tempo", 0));
                 break;
             case 3:
-                bottomLimit = maxHr * 70 / 100;
-                topLimit = maxHr * 80 / 100;
                 editor.putString("trainingZoneString", "70 - 80% HRMax");
+                editor.putString("resultingHeartrateString", String.format("%d - %d", zone2Top, zone3Top));
+                editor.putInt("bottomLimit", zone2Top);
+                editor.putInt("topLimit", zone3Top);
+                editor.putInt("choosenTrainingzone", 3);
+                editor.putInt("playListInitialTempo", settings.getInt("zone3Tempo", 0));
                 break;
-
         }
-        editor.putInt("bottomLimit", bottomLimit);
-        editor.putInt("topLimit", topLimit);
-        editor.putString("resultingHeartrateString", String.format("%d - %d", bottomLimit, topLimit));
         editor.commit();
     }
 }

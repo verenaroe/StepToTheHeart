@@ -14,13 +14,9 @@
         android:layout_width="match_parent">
     </ListView>
 
-    <TextView android:id="@+id/device_name"
+    <TextView android:id="@+id/playlistName"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:textSize="24dp"/>
-    <TextView android:id="@+id/device_address"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:textSize="12dp"/>
 
 </LinearLayout>

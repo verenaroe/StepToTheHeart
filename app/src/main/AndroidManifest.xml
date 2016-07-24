@@ -41,7 +41,8 @@
             android:exported="true" />
 
         <activity android:name=".DeviceControlActivity" />
-        <activity android:name=".SpotifyActivity"
+        <activity android:name=".PlaylistListActivity" />
+        <activity android:name=".SpotifyAuthenticationActivity"
             android:launchMode="singleInstance">
         <intent-filter>
             <action android:name="android.intent.action.VIEW"/>
