@@ -63,22 +63,22 @@ public class DeviceScanActivity extends AppCompatActivity {
     private BluetoothDevice polarRun = null;
     private BluetoothDevice polarH7 = null;
 
-   /* // Device scan callback.
-    private BluetoothAdapter.LeScanCallback mLeScanCallback =
-            new BluetoothAdapter.LeScanCallback() {
+    /* // Device scan callback.
+     private BluetoothAdapter.LeScanCallback mLeScanCallback =
+             new BluetoothAdapter.LeScanCallback() {
 
-                @Override
-                public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            mLeDeviceListAdapter.addDevice(device);
-                            mLeDeviceListAdapter.notifyDataSetChanged();
-                        }
-                    });
-                }
-            };
-*/
+                 @Override
+                 public void onLeScan(final BluetoothDevice device, int rssi, byte[] scanRecord) {
+                     runOnUiThread(new Runnable() {
+                         @Override
+                         public void run() {
+                             mLeDeviceListAdapter.addDevice(device);
+                             mLeDeviceListAdapter.notifyDataSetChanged();
+                         }
+                     });
+                 }
+             };
+ */
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -184,8 +184,8 @@ public class DeviceScanActivity extends AppCompatActivity {
 
     @Override
     public void onDestroy() {
-         unregisterReceiver(mReceiver);
-         super.onDestroy();
+        unregisterReceiver(mReceiver);
+        super.onDestroy();
     }
 
     private final BroadcastReceiver mReceiver = new BroadcastReceiver() {
@@ -200,22 +200,21 @@ public class DeviceScanActivity extends AppCompatActivity {
                 //bluetooth device found
                 BluetoothDevice device = (BluetoothDevice) intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 
-                Log.i("AG","Found device " + device.getName());
+                Log.i("AG", "Found device " + device.getName());
                 if (device.getName() == null) return;
-                if (device.getName().contains("Polar H7")){
+                if (device.getName().contains("Polar H7")) {
                     mLeDeviceListAdapter.addDevice(device);
                     mLeDeviceListAdapter.notifyDataSetChanged();
                     polarH7Detected = true;
                     polarH7 = device;
-                }
-                else if (device.getName().contains("Polar RUN")){
+                } else if (device.getName().contains("Polar RUN")) {
                     mLeDeviceListAdapter.addDevice(device);
                     mLeDeviceListAdapter.notifyDataSetChanged();
                     polarRunDetected = true;
                     polarRun = device;
                 }
 
-                if (polarH7Detected && polarRunDetected){
+                if (polarH7Detected && polarRunDetected) {
                     if (polarH7 == null || polarRun == null) return;
                     final Intent controlIntent = new Intent(context, DeviceControlActivity.class);
                     controlIntent.putExtra(DeviceControlActivity.EXTRAS_RUN_NAME, polarRun.getName());
@@ -226,7 +225,7 @@ public class DeviceScanActivity extends AppCompatActivity {
                         mBluetoothAdapter.cancelDiscovery();
                         mScanning = false;
                     }
-                   startActivity(controlIntent);
+                    startActivity(controlIntent);
 
                 }
             }
@@ -271,7 +270,7 @@ public class DeviceScanActivity extends AppCompatActivity {
         }
 
         public void addDevice(BluetoothDevice device) {
-            if(!mLeDevices.contains(device)) {
+            if (!mLeDevices.contains(device)) {
                 mLeDevices.add(device);
             }
         }

@@ -79,15 +79,8 @@ public class BluetoothLeService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
-        // the notification during recording
-
-        //Notification notification = new Notification(R.drawable.ic_launcher, "BLE Logger",
-       //         System.currentTimeMillis());
         Intent notificationIntent = new Intent(this, BluetoothLeService.class);
         PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-        //notification.setLatestEventInfo(this, "BLE","BLE Logger", pendingIntent);
-        //this.startForeground(1, notification);
 
         return Service.START_NOT_STICKY;
     }
@@ -103,22 +96,11 @@ public class BluetoothLeService extends Service {
             if (newState == BluetoothProfile.STATE_CONNECTED) {
                 intentAction = ACTION_GATT_CONNECTED;
                 mConnectionState = STATE_CONNECTED;
-               /* try {
-                    // have to sleep because it takes time to discover services
-                    Thread.sleep(15000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }*/
+
                 broadcastUpdate(intentAction);
-
-
-                Log.i(TAG, "Connected to GATT server.");
-                // Attempts to discover services after successful connection.
-                //if()
 
                 Log.i(TAG, "Attempting to start service discovery:"
                         + mBluetoothGattH7.discoverServices());
-
 
                 Log.i(TAG, "Attempting to start service discovery:"
                         + mBluetoothGattRUN.discoverServices());
@@ -179,13 +161,13 @@ public class BluetoothLeService extends Service {
             Log.d(TAG, String.format("Received heart rate: %d", heartRate));
             intent.putExtra(EXTRA_DATA_HEARTRATE, String.valueOf(heartRate));
             DeviceControlActivity.fillHeartrate(heartRate);
-        }else if (UUID_RUNNINGSPEEDANDCADENCE_MEASUREMENT.equals(characteristic.getUuid())){
+        } else if (UUID_RUNNINGSPEEDANDCADENCE_MEASUREMENT.equals(characteristic.getUuid())) {
 
             int offset = 3;
 
             final int instantaneousCadence = characteristic.getIntValue(BluetoothGattCharacteristic.FORMAT_UINT8, offset);
 
-            Log.d(TAG, String.format("Received Cadence: %d",  instantaneousCadence));
+            Log.d(TAG, String.format("Received Cadence: %d", instantaneousCadence));
 
             intent.putExtra(EXTRA_DATA_CADENCE, String.valueOf(instantaneousCadence * 2));
             DeviceControlActivity.fillCadence(instantaneousCadence);
@@ -246,13 +228,11 @@ public class BluetoothLeService extends Service {
     /**
      * Connects to the GATT server hosted on the Bluetooth LE device.
      *
-     * @param address
-     *            The device address of the destination device.
-     *
+     * @param address The device address of the destination device.
      * @return Return true if the connection is initiated successfully. The
-     *         connection result is reported asynchronously through the
-     *         {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
-     *         callback.
+     * connection result is reported asynchronously through the
+     * {@code BluetoothGattCallback#onConnectionStateChange(android.bluetooth.BluetoothGatt, int, int)}
+     * callback.
      */
     public boolean connect(final String address) {
         if (mBluetoothAdapter == null || address == null) {
@@ -298,13 +278,13 @@ public class BluetoothLeService extends Service {
         // We want to directly connect to the device, so we are setting the
         // autoConnect
         // parameter to false.
-        if (device.getName().contains("Polar RUN")){
+        if (device.getName().contains("Polar RUN")) {
             mBluetoothGattRUN = device.connectGatt(this, false, mGattCallback);
             Log.d(TAG, "Trying to create a new connection to RUN.");
             mBluetoothDeviceAddressRUN = address;
         }
 
-        if (device.getName().contains("Polar H7")){
+        if (device.getName().contains("Polar H7")) {
             mBluetoothGattH7 = device.connectGatt(this, false, mGattCallback);
             Log.d(TAG, "Trying to create a new connection H7.");
             mBluetoothDeviceAddressH7 = address;
@@ -327,7 +307,6 @@ public class BluetoothLeService extends Service {
         }
         mBluetoothGattH7.disconnect();
         mBluetoothGattRUN.disconnect();
-
     }
 
     /**
@@ -347,10 +326,8 @@ public class BluetoothLeService extends Service {
     /**
      * Enables or disables notification on a give characteristic.
      *
-     * @param characteristic
-     *            Characteristic to act on.
-     * @param enabled
-     *            If true, enable notification. False otherwise.
+     * @param characteristic Characteristic to act on.
+     * @param enabled        If true, enable notification. False otherwise.
      */
     public void setCharacteristicNotification(
             BluetoothGattCharacteristic characteristic, boolean enabled) {
@@ -359,18 +336,18 @@ public class BluetoothLeService extends Service {
             return;
         }
 
-        if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())){
+        if (UUID_HEART_RATE_MEASUREMENT.equals(characteristic.getUuid())) {
             mBluetoothGattH7.setCharacteristicNotification(characteristic, enabled);
             BluetoothGattDescriptor descriptor = characteristic
                     .getDescriptor(UUID
                             .fromString(SampleGattAttributes.CLIENT_CHARACTERISTIC_CONFIG));
             descriptor
-                        .setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    .setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
 
             mBluetoothGattH7.writeDescriptor(descriptor);
         }
 
-        if (UUID_RUNNINGSPEEDANDCADENCE_MEASUREMENT.equals(characteristic.getUuid())){
+        if (UUID_RUNNINGSPEEDANDCADENCE_MEASUREMENT.equals(characteristic.getUuid())) {
             mBluetoothGattRUN.setCharacteristicNotification(characteristic, enabled);
             BluetoothGattDescriptor descriptor = characteristic
                     .getDescriptor(UUID

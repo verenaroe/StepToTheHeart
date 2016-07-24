@@ -2,8 +2,8 @@ package ch.vrdesign.steptotheheart;
 
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.RadioGroup;
 
@@ -17,7 +17,7 @@ public class ChooseTargetActivity extends AppCompatActivity {
         setContentView(R.layout.activity_choose_target);
     }
 
-    public void goToOverview(View view){
+    public void goToOverview(View view) {
 
         setSettings();
 
@@ -25,7 +25,7 @@ public class ChooseTargetActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    private void setSettings(){
+    private void setSettings() {
 
         // get settings
 
@@ -50,7 +50,7 @@ public class ChooseTargetActivity extends AppCompatActivity {
         int radioButtonID = radioButtonGroup.getCheckedRadioButtonId();
         View radioButton = radioButtonGroup.findViewById(radioButtonID);
         int index = radioButtonGroup.indexOfChild(radioButton);
-        switch (index){
+        switch (index) {
             case 1:
                 editor.putString("trainingZoneString", "50 - 60% HRMax");
                 editor.putString("resultingHeartrateString", String.format("%d - %d", zone1Bottom, zone1Top));

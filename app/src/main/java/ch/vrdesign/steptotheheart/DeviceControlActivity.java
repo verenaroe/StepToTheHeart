@@ -40,8 +40,6 @@ import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Bundle;
-
-
 import android.os.Environment;
 import android.os.IBinder;
 import android.support.v4.app.ActivityCompat;
@@ -55,6 +53,28 @@ import android.widget.ImageButton;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import com.dropbox.client2.DropboxAPI;
+import com.dropbox.client2.android.AndroidAuthSession;
+import com.dropbox.client2.session.AccessTokenPair;
+import com.dropbox.client2.session.AppKeyPair;
+import com.dropbox.client2.session.Session.AccessType;
+import com.spotify.sdk.android.authentication.AuthenticationClient;
+import com.spotify.sdk.android.authentication.AuthenticationResponse;
+import com.spotify.sdk.android.player.Config;
+import com.spotify.sdk.android.player.ConnectionStateCallback;
+import com.spotify.sdk.android.player.Player;
+import com.spotify.sdk.android.player.PlayerNotificationCallback;
+import com.spotify.sdk.android.player.PlayerState;
+import com.spotify.sdk.android.player.Spotify;
+
+import org.achartengine.ChartFactory;
+import org.achartengine.GraphicalView;
+import org.achartengine.chart.PointStyle;
+import org.achartengine.model.XYMultipleSeriesDataset;
+import org.achartengine.model.XYSeries;
+import org.achartengine.renderer.XYMultipleSeriesRenderer;
+import org.achartengine.renderer.XYSeriesRenderer;
+
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -66,29 +86,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-
-import org.achartengine.ChartFactory;
-import org.achartengine.GraphicalView;
-import org.achartengine.chart.PointStyle;
-import org.achartengine.model.XYMultipleSeriesDataset;
-import org.achartengine.model.XYSeries;
-import org.achartengine.renderer.XYMultipleSeriesRenderer;
-import org.achartengine.renderer.XYSeriesRenderer;
-
-import com.dropbox.client2.DropboxAPI;
-import com.dropbox.client2.android.AndroidAuthSession;
-import com.dropbox.client2.session.AccessTokenPair;
-import com.dropbox.client2.session.AppKeyPair;
-import com.dropbox.client2.session.Session.AccessType;
-import com.spotify.sdk.android.authentication.AuthenticationClient;
-import com.spotify.sdk.android.authentication.AuthenticationResponse;
-import com.spotify.sdk.android.player.Config;
-import com.spotify.sdk.android.player.ConnectionStateCallback;
-import com.spotify.sdk.android.player.PlayConfig;
-import com.spotify.sdk.android.player.Player;
-import com.spotify.sdk.android.player.PlayerNotificationCallback;
-import com.spotify.sdk.android.player.PlayerState;
-import com.spotify.sdk.android.player.Spotify;
 
 import kaaes.spotify.webapi.android.SpotifyApi;
 import kaaes.spotify.webapi.android.SpotifyService;
@@ -278,8 +275,6 @@ public class DeviceControlActivity extends AppCompatActivity implements PlayerNo
                 // user interface.
                 displayGattServices(mBluetoothLeServiceH7
                         .getSupportedGattServices("H7"));
-
-                // mButtonStop.setVisibility(View.VISIBLE);
             } else if (BluetoothLeService.ACTION_DATA_AVAILABLE.equals(action)) {
 
                 displayHeartRate(intent.getStringExtra(BluetoothLeService.EXTRA_DATA_HEARTRATE));
@@ -957,16 +952,22 @@ public class DeviceControlActivity extends AppCompatActivity implements PlayerNo
             // Loops through available Characteristics.
             for (BluetoothGattCharacteristic gattCharacteristic : gattCharacteristics) {
 
-                if (gattCharacteristic == null)
-                    // repeat discover
-                if (UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT)
-                        .equals(gattCharacteristic.getUuid())) {
-                    Log.d(TAG, "Found heart rate");
-                    mNotifyCharacteristicH7 = gattCharacteristic;
-                } else if (UUID.fromString(SampleGattAttributes.RUNNINGSPEEDANDCADENCE_MEASUREMENT).equals(gattCharacteristic.getUuid())) {
-                    Log.d(TAG, "Found Running Speed and Cadence");
-                    mNotifyCharacteristicRUN = gattCharacteristic;
+                if (gattCharacteristic == null){
+                    try {
+                        Thread.sleep(3000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
                 }
+
+                    if (UUID.fromString(SampleGattAttributes.HEART_RATE_MEASUREMENT)
+                            .equals(gattCharacteristic.getUuid())) {
+                        Log.d(TAG, "Found heart rate");
+                        mNotifyCharacteristicH7 = gattCharacteristic;
+                    } else if (UUID.fromString(SampleGattAttributes.RUNNINGSPEEDANDCADENCE_MEASUREMENT).equals(gattCharacteristic.getUuid())) {
+                        Log.d(TAG, "Found Running Speed and Cadence");
+                        mNotifyCharacteristicRUN = gattCharacteristic;
+                    }
 
                 charas.add(gattCharacteristic);
                 HashMap<String, String> currentCharaData = new HashMap<String, String>();

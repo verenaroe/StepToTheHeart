@@ -81,17 +81,17 @@ public class UploadFile extends AsyncTask<Void, Long, Boolean> {
             String path = mPath + mFile.getName();
             mRequest = mApi.putFileOverwriteRequest(path, fis, mFile.length(),
                     new ProgressListener() {
-                @Override
-                public long progressInterval() {
-                    // Update the progress bar every half-second or so
-                    return 500;
-                }
+                        @Override
+                        public long progressInterval() {
+                            // Update the progress bar every half-second or so
+                            return 500;
+                        }
 
-                @Override
-                public void onProgress(long bytes, long total) {
-                    publishProgress(bytes);
-                }
-            });
+                        @Override
+                        public void onProgress(long bytes, long total) {
+                            publishProgress(bytes);
+                        }
+                    });
 
             if (mRequest != null) {
                 mRequest.upload();
@@ -144,7 +144,7 @@ public class UploadFile extends AsyncTask<Void, Long, Boolean> {
 
     @Override
     protected void onProgressUpdate(Long... progress) {
-        int percent = (int)(100.0*(double)progress[0]/mFileLen + 0.5);
+        int percent = (int) (100.0 * (double) progress[0] / mFileLen + 0.5);
         mDialog.setProgress(percent);
     }
 
@@ -152,7 +152,7 @@ public class UploadFile extends AsyncTask<Void, Long, Boolean> {
     protected void onPostExecute(Boolean result) {
         mDialog.dismiss();
         if (result) {
-            showToast("File successfully uploaded");	
+            showToast("File successfully uploaded");
         } else {
             showToast(mErrorMsg);
         }

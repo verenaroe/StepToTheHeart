@@ -1,10 +1,12 @@
 package ch.vrdesign.steptotheheart;
+
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.EditText;
+
 public class TrainingOverviewActivity extends AppCompatActivity {
 
     public static final String PREFS_NAME = "MyPrefsFile";
@@ -32,7 +34,7 @@ public class TrainingOverviewActivity extends AppCompatActivity {
         txtResultingHeartRate.setText(settings.getString("resultingHeartrateString", "not set"));
     }
 
-    public void goToScanActivity(View view){
+    public void goToScanActivity(View view) {
         if (view.getId() == R.id.buttonTestRun)
             DeviceControlActivity.TestRun = true;
         else if (view.getId() == R.id.buttonLetsGo)
@@ -41,7 +43,7 @@ public class TrainingOverviewActivity extends AppCompatActivity {
         startActivity(intent);
     }
 
-    public void goToPlaylistActivity(View view){
+    public void goToPlaylistActivity(View view) {
         Intent intent = new Intent(this, PlaylistListActivity.class);
         startActivity(intent);
     }

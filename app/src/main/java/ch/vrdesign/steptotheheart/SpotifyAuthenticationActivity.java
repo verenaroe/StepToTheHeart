@@ -14,15 +14,15 @@ import com.spotify.sdk.android.player.Spotify;
 public class SpotifyAuthenticationActivity extends Activity implements
         PlayerNotificationCallback, ConnectionStateCallback {
 
-        private static final String CLIENT_ID = "fe5fc16f32a742deb6ba3241d93852aa";
-        private static final String REDIRECT_URI = "ch.vrdesign.steptotheheart://callback";
+    private static final String CLIENT_ID = "fe5fc16f32a742deb6ba3241d93852aa";
+    private static final String REDIRECT_URI = "ch.vrdesign.steptotheheart://callback";
     /**
      * Request code that will be passed together with authentication result to the onAuthenticationResult
      */
     private static final int REQUEST_CODE = 1337;
 
 
-    public SpotifyAuthenticationActivity(Activity contextActivity){
+    public SpotifyAuthenticationActivity(Activity contextActivity) {
 
         AuthenticationRequest.Builder builder =
                 new AuthenticationRequest.Builder(CLIENT_ID, AuthenticationResponse.Type.TOKEN, REDIRECT_URI);
@@ -76,11 +76,12 @@ public class SpotifyAuthenticationActivity extends Activity implements
                 break;
         }
     }
-@Override
+
+    @Override
     protected void onDestroy() {
         // VERY IMPORTANT! This must always be called or else you will leak resources
         Spotify.destroyPlayer(this);
-    super.onDestroy();
+        super.onDestroy();
     }
 
 }

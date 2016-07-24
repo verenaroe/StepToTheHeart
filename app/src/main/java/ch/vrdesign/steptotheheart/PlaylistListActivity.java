@@ -23,36 +23,27 @@ package ch.vrdesign.steptotheheart;
 import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
-import android.content.BroadcastReceiver;
-import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.support.v4.util.ArrayMap;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.spotify.sdk.android.authentication.AuthenticationClient;
 import com.spotify.sdk.android.authentication.AuthenticationResponse;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -63,9 +54,8 @@ import kaaes.spotify.webapi.android.models.AudioFeaturesTrack;
 import kaaes.spotify.webapi.android.models.Pager;
 import kaaes.spotify.webapi.android.models.PlaylistSimple;
 import kaaes.spotify.webapi.android.models.PlaylistTrack;
-import kaaes.spotify.webapi.android.models.SavedTrack;
 
-import static android.widget.AdapterView.*;
+import static android.widget.AdapterView.OnItemClickListener;
 
 /**
  * Activity for scanning and displaying available Bluetooth LE devices.
@@ -144,7 +134,7 @@ public class PlaylistListActivity extends AppCompatActivity {
 
         getSupportActionBar().setTitle("List of spotify Playlists");
         mHandler = new Handler();
-final Activity spotActivity = this;
+        final Activity spotActivity = this;
 
         SpotifyAuthenticationActivity spot = new SpotifyAuthenticationActivity(spotActivity);
 
@@ -205,8 +195,8 @@ final Activity spotActivity = this;
 
                 try {
                     List<String> list = new SetPlaylistIds().execute().get();
-                    for (String name: list
-                         ) {
+                    for (String name : list
+                            ) {
                         mLeDeviceListAdapter.addDevice(name);
                         mLeDeviceListAdapter.notifyDataSetChanged();
                     }
@@ -342,7 +332,7 @@ final Activity spotActivity = this;
             String device = playLists.get(i);
             //final String deviceName = device.getName();
             //if (deviceName != null && deviceName.length() > 0)
-                viewHolder.deviceName.setText(device);
+            viewHolder.deviceName.setText(device);
             //else
             //    viewHolder.deviceName.setText(R.string.unknown_device);
             //viewHolder.deviceAddress.setText(device.getAddress());
@@ -434,12 +424,12 @@ final Activity spotActivity = this;
 
             SpotifyService spotify = api.getService();
             Pager<PlaylistSimple> playlists = spotify.getMyPlaylists();
-List<String> list = new ArrayList<>();
+            List<String> list = new ArrayList<>();
 
             for (PlaylistSimple playlist : playlists.items
                     ) {
                 list.add(playlist.name);
-               // mLeDeviceListAdapter.notifyDataSetChanged();
+                // mLeDeviceListAdapter.notifyDataSetChanged();
 
                 if (playlist.name.equals("80-90")) {
                     playListid80 = playlist.id;
